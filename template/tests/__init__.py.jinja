@@ -1,0 +1,76 @@
+"""{{ package_name }}'s tests: BEA's cohort contract, and the toy end to end.
+
+Run from the repository root::
+
+    TEST_TIER=fast python -m unittest discover
+
+``project_configuration.testing`` loads the classes registered below through ``load_tests``. It
+generates its settings under ``tests/Configuration_files/`` (gitignored) on the first run, with
+every class ``"on"``; set one ``"off"`` in ``TestSettings_config.toml`` there to skip it.
+"""
+import shutil
+import tempfile
+import unittest
+from pathlib import Path
+
+from building_energy_analysis.building_data.testing.contract_tests import CohortContractTests
+from project_configuration import testing
+from project_configuration.results.sql.tracked_engine import EngineTracker
+
+from {{ import_name }}.cohort import TOY_DATA, {{ class_name }}
+
+#: The toy's households, as ``toy_data/households.csv`` lists them.
+TOY_PUPRNS = ['TOY01', 'TOY02']
+
+
+class Tests{{ class_name }}Contract(CohortContractTests, unittest.TestCase):
+    """BEA's cohort contract, checked of {{ class_name }}. Never weaken it here: fix the cohort."""
+    cohort_class = {{ class_name }}
+    cohort_kwargs = dict(data_dir=TOY_DATA)
+
+
+class Tests{{ class_name }}Toy(unittest.TestCase):
+    """The toy, end to end: ``init_dataset`` builds the cohort, and MLR fits on one household."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.base_dir = Path(tempfile.mkdtemp(prefix='toy_'))
+        cls.addClassCleanup(cls._remove_base_dir)
+        cls.cohort = {{ class_name }}.init_dataset(base_dir=cls.base_dir, data_dir=TOY_DATA)
+
+    @classmethod
+    def _remove_base_dir(cls):
+        EngineTracker.close_engines()
+        shutil.rmtree(cls.base_dir, ignore_errors=True)
+
+    def test_init_dataset_finds_the_toys_households(self):
+        self.assertEqual(TOY_PUPRNS, self.cohort.get_puprns())
+
+    def test_a_household_has_a_week_of_hourly_readings(self):
+        household = self.cohort.get_dataset(next(iter(self.cohort.puprns)))
+        self.assertEqual(7 * 24, len(household._get_energy_data()))
+
+    def test_mlr_fits_on_one_household(self):
+        from building_energy_analysis.models import ModelAnalysis
+        from building_energy_analysis.models.implementations.get_model import get_model
+
+        household = self.cohort.get_dataset(next(iter(self.cohort.puprns)))
+        analysis = ModelAnalysis(get_model(household, 'mlr'))
+        analysis.get_results()
+
+        self.assertEqual('completed', str(analysis.status))
+        self.assertEqual(['H', 'g'], sorted(analysis.parameter_estimates))
+        # TOY01 is generated with H = 180 W/K, and its electrical base load is counted as heat, so
+        # MLR finds about 200. Replace this check when the toy is replaced.
+        self.assertEqual('TOY01', household.puprn)
+        self.assertAlmostEqual(200, analysis.parameter_estimates['H'][0], delta=40)
+
+
+testing.add_tests(Tests{{ class_name }}Contract,
+                  Tests{{ class_name }}Toy)
+
+
+def load_tests(loader, module_tests, pattern):
+    # ``module_tests`` is the classes above, loaded by unittest from this module; they reach the
+    # suite once, through add_tests, so that the test-settings file switches them on and off.
+    return testing.load_tests(loader, unittest.TestSuite(), pattern)

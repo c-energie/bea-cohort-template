@@ -1,0 +1,9 @@
+"""{{ description }}
+
+The cohort is found by name through its ``bea.cohorts`` entry point; its variables are declared
+when this package is imported, which loading the entry point does.
+"""
+from {{ import_name }}.cohort import {{ class_name }}
+from {{ import_name }} import variables  # noqa: F401  declares the cohort's variables
+
+__all__ = ['{{ class_name }}']

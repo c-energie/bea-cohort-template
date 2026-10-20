@@ -1,0 +1,70 @@
+# {{ package_name }}
+
+{{ description }}
+
+A cohort adapter for [building-energy-analysis](https://github.com/c-energie/building-energy-analysis)
+(BEA). It provides the cohort `{{ class_name }}`, written against BEA's cohort contract
+{{ contract_version }}. As rendered, it reads a **toy**: two households, one week, hourly.
+
+## Quickstart
+
+```bash
+pip install -e .
+TEST_TIER=fast python -m unittest discover
+```
+
+Run the tests from the repository root. They check the cohort against BEA's cohort contract
+(`CohortContractTests`), build the cohort from the toy with `init_dataset`, and fit MLR on one
+household. They should pass before you change anything, so a later failure is known to be yours.
+
+## Replace the toy
+
+Commit after each step, and rerun the tests after each one.
+
+1. **Describe the source, without its values.** Run BEA's schema-only report,
+   `skills/bea-cohort-adapter/scripts/inspect_source.py`, on the data. Never commit data, and never
+   copy rows into this repository.
+2. **Map its columns** in `src/{{ import_name }}/settings.py`: each measured column to a BEA quantity,
+   each mapped quantity to its unit under `[units]`, and its measurement uncertainty under
+   `[sensor_uncertainty]`.
+3. **Read its files** in `src/{{ import_name }}/cohort.py` (`readings`, `_get_all_puprn_info`) and
+   `src/{{ import_name }}/household.py`, for the source's own layout.
+4. **Point at the data.** The first time the cohort reads its configuration it writes a machine-layer
+   file, `Datasets/{{ class_name }}_config.toml` under your configuration home, with `data_dir`
+   blank under `[input_dirs]`. Set it there to the absolute path of the data. Until then, the
+   cohort refuses to read and the error names the file.
+5. **Keep the toy as the tests' fixture**, or replace it with a small synthetic one of the source's
+   layout. The tests read it through `data_dir=TOY_DATA`, never from the machine layer.
+
+Optional parts are commented examples in the code: more in-home sensors (`settings.py`), the
+cohort's location and household attributes, and a filter (`cohort.py`).
+
+Then build the cohort's database and run an analysis:
+
+```bash
+init_dataset --dc {{ class_name }}
+```
+
+## Keeping up with BEA
+
+A new cohort contract arrives with a new template version. From a clean working tree:
+
+```bash
+uvx copier update
+pip install -e .
+TEST_TIER=fast python -m unittest discover
+```
+
+More: the [BEA docs hub](https://c-energie.github.io/bea-docs/), and
+[CONTRIBUTING](https://github.com/c-energie/.github/blob/main/CONTRIBUTING.md).
+{%- if licence != 'proprietary' %}
+
+## Licence
+
+{{ licence }}; see `LICENSE`.
+{%- else %}
+
+## Licence
+
+Proprietary. The package is classified `Private :: Do Not Upload`, so PyPI refuses it.
+{%- endif %}

@@ -1,0 +1,14 @@
+# Configuration the test framework and BEA generate where they run: environment-local, never committed.
+tests/Configuration_files/
+Configuration_files/
+tests/Logs/
+Logs/
+Results/
+Data/
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/

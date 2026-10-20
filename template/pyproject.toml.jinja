@@ -1,0 +1,33 @@
+[project]
+name = "{{ package_name }}"
+version = "0.1.0"
+description = "{{ description }}"
+authors = [{ name = "{{ author_name }}", email = "{{ author_email }}" }]
+readme = "README.md"
+{%- if licence != 'proprietary' %}
+license = "{{ licence }}"
+license-files = ["LICENSE"]
+{%- endif %}
+requires-python = ">=3.11.4, <3.14"
+classifiers = [
+    "Programming Language :: Python :: 3",
+{%- if licence == 'proprietary' %}
+    # Refused by PyPI on upload: this package cannot be published by accident.
+    "Private :: Do Not Upload",
+{%- endif %}
+]
+dependencies = [
+    # Cohort contract major 1 (ADR 0003: a contract major is a BEA major).
+    "building-energy-analysis>=1.0,<2",
+]
+
+# BEA finds the cohort by this name: it must be the class's own name.
+[project.entry-points."bea.cohorts"]
+{{ class_name }} = "{{ import_name }}.cohort:{{ class_name }}"
+
+[build-system]
+requires = ["uv_build>=0.9,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "{{ import_name }}"

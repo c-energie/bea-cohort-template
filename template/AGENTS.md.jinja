@@ -1,0 +1,47 @@
+# {{ package_name }}
+
+A **cohort adapter** for building-energy-analysis (BEA): it turns one data source into the cohort
+`{{ class_name }}`, which BEA finds by name through its `bea.cohorts` entry point. Written against
+BEA's **cohort contract {{ contract_version }}**, rendered from `c-energie/bea-cohort-template`.
+
+## Commands
+
+Run from the repository root:
+
+```bash
+pip install -e .
+TEST_TIER=fast python -m unittest discover
+```
+
+Reinstall after editing `pyproject.toml`: an entry point is read from installed metadata. The
+first run generates `tests/Configuration_files/` (gitignored), with every test class `on`.
+
+## Vocabulary
+
+Use BEA's words ([CONTEXT.md](https://github.com/c-energie/building-energy-analysis/blob/master/CONTEXT.md)).
+A data source is never a "dataset": in BEA a **Dataset** is the data of one household. This
+package makes a **cohort** of **households**, each identified by a **PUPRN**. Class names stay
+`…Cohort` and `…Dataset` even when the package name says `-dataset`.
+
+## Layout
+
+- `src/{{ import_name }}/settings.py`: the source schema, `[units]`, sensor uncertainties
+- `src/{{ import_name }}/cohort.py`: `{{ class_name }}`, reads the source
+- `src/{{ import_name }}/household.py`: `{{ household_class_name }}`, one household
+- `src/{{ import_name }}/variables.py`: a `Variable` per quantity a model reads
+- `src/{{ import_name }}/toy_data/`: the toy, the tests' fixture
+- `tests/__init__.py`: BEA's `CohortContractTests`, and the toy end to end
+
+## Rules
+
+- **Never commit data**, and never read a data file's values to learn its layout. To describe a
+  source, run BEA's `skills/bea-cohort-adapter/scripts/inspect_source.py`: a schema-only report.
+- Real paths go in the machine layer's `[input_dirs] data_dir`, never in this package.
+- Never weaken a contract test, and never edit BEA to make one pass.
+- Leave `contract_version` as rendered. A contract bump is `copier update`, from a clean tree.
+
+## More
+
+- How to contribute: [CONTRIBUTING](https://github.com/c-energie/.github/blob/main/CONTRIBUTING.md)
+- How-tos and reference: <https://c-energie.github.io/bea-docs/>
+- Agent skills: `gh skill install c-energie/building-energy-analysis --scope project`

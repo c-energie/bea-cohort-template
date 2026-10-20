@@ -1,0 +1,106 @@
+# The BEA cohort adapter template (c-energie/smeter-test-workspace#16).
+#
+# Six questions, no feature toggles: optional features (in-home sensors beyond the toy's, filters,
+# household attributes) are commented examples in the generated code. `contract_version` is
+# rendered, never asked, and template tags follow its major: template v1.x renders cohort
+# contract 1.x code.
+#
+#   uvx copier copy gh:c-energie/bea-cohort-template my-source-dataset
+
+_min_copier_version: "9.0"
+_subdirectory: template
+_templates_suffix: .jinja
+_answers_file: .copier-answers.yml
+
+package_name:
+  type: str
+  help: Distribution name, as `pip install` sees it (suggested `<source>-dataset`)
+  default: my-source-dataset
+  validator: >-
+    {% if not (package_name | regex_search('^[a-z][a-z0-9]*(-[a-z0-9]+)*$')) %}
+    Lower-case words joined by hyphens, e.g. acme-homes-dataset.
+    {% endif %}
+
+import_name:
+  type: str
+  help: Import name of the package
+  default: "{{ package_name | replace('-', '_') }}"
+  validator: >-
+    {% if not (import_name | regex_search('^[a-z_][a-z0-9_]*$')) %}
+    A Python identifier in lower case, e.g. acme_homes_dataset.
+    {% endif %}
+
+class_name:
+  type: str
+  help: >-
+    Cohort class name; also its `bea.cohorts` entry-point name, the name BEA finds it by.
+    Keep the `Cohort` suffix even when the package says `-dataset`
+  default: >-
+    {%- set stem = package_name | regex_replace('-(dataset|cohort)$', '') -%}
+    {%- for word in stem.split('-') %}{{ word | capitalize }}{% endfor %}Cohort
+  validator: >-
+    {% if not (class_name | regex_search('^[A-Z][A-Za-z0-9]*Cohort$')) %}
+    A CapWords class name ending in Cohort, e.g. AcmeHomesCohort.
+    {% endif %}
+
+description:
+  type: str
+  help: One-line description
+  default: A BEA cohort adapter for my data source.
+  validator: >-
+    {% if '"' in description or '\\' in description %}
+    No double quotes or backslashes: it is written into pyproject.toml and a docstring.
+    {% endif %}
+
+author_name:
+  type: str
+  help: Author's name
+  default: Your Name
+  validator: >-
+    {% if '"' in author_name or '\\' in author_name %}
+    No double quotes or backslashes: it is written into pyproject.toml and a docstring.
+    {% endif %}
+
+author_email:
+  type: str
+  help: Author's email
+  default: you@example.com
+  validator: >-
+    {% if '"' in author_email or '\\' in author_email %}
+    No double quotes or backslashes: it is written into pyproject.toml and a docstring.
+    {% endif %}
+
+licence:
+  type: str
+  help: >-
+    Licence. `proprietary` writes no LICENSE file and marks the package
+    `Private :: Do Not Upload`, so it cannot be uploaded to PyPI by accident
+  choices:
+    - MIT
+    - BSD-3-Clause
+    - Apache-2.0
+    - proprietary
+  default: MIT
+
+# Rendered, never asked, and kept out of .copier-answers.yml, so `copier update` to a new
+# template version brings the new contract with it.
+contract_version:
+  type: str
+  default: "1.1"
+  when: false
+
+# The household class: the cohort's name with `Dataset` for `Cohort`. In BEA a Dataset is the
+# data of one household.
+household_class_name:
+  type: str
+  default: "{{ class_name | regex_replace('Cohort$', '') }}Dataset"
+  when: false
+
+# Copier's defaults, which setting _exclude replaces.
+_exclude:
+  - "~*"
+  - "*.py[co]"
+  - __pycache__
+  - .git
+  - .DS_Store
+  - .svn

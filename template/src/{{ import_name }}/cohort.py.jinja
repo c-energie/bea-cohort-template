@@ -1,0 +1,104 @@
+"""{{ class_name }}: the cohort of households this package's data source holds.
+
+A **cohort** is a set of households BEA analyses together, each identified by its **PUPRN**. This
+class says which households there are (``_get_all_puprn_info``), builds one household's
+``{{ household_class_name }}`` (``get_dataset``), and reads the source's files (``readings``). It is
+found by name, ``{{ class_name }}``, through its ``bea.cohorts`` entry point in ``pyproject.toml``.
+
+**The toy.** As rendered it reads the four CSVs under ``toy_data/``: two households, one week,
+hourly. The tests point it there with ``data_dir=TOY_DATA``; anything else reads the machine
+layer's ``[input_dirs] data_dir``. To replace the toy, rewrite ``readings`` and
+``_get_all_puprn_info`` for the source's own layout, and its column names in ``settings.py``.
+"""
+from importlib.resources import files
+from pathlib import Path
+from typing import Optional, Union
+
+import pandas as pd
+from building_energy_analysis.building_data.datasets.dataset_cohort import DatasetCohort
+from project_configuration.config.settings import Settings
+
+from {{ import_name }}.settings import dataset_settings
+
+#: The toy source: the tests' fixture, read through ``importlib.resources`` so it is found in an
+#: installed wheel as well as in a checkout.
+TOY_DATA = files('{{ import_name }}') / 'toy_data'
+
+#: The column naming the household in every per-household file, and the one holding the time.
+PUPRN_COLUMN = 'puprn'
+TIME_COLUMN = 'timestamp'
+
+#: ``{name: file}`` of the source's files under ``data_dir``.
+FILES = dict(energy='energy.csv', climate='climate.csv', in_home='in_home.csv', households='households.csv')
+
+
+class {{ class_name }}(DatasetCohort):
+    """{{ description }}"""
+
+    #: The cohort contract this class is written against. Rendered by the template: bring it up
+    #: with ``copier update``, never by hand.
+    contract_version = '{{ contract_version }}'
+
+    #: The timezone the source's timestamps are in, as an IANA name; each marks the start of its
+    #: period. ``None`` states none.
+    timezone = 'UTC'
+
+    #: Where the households are, ``(latitude, longitude)`` in decimal degrees: one point for the
+    #: cohort. Optional; a model that needs solar geometry reads it.
+    # location = (51.5246, -0.1340)
+
+    #: What is recorded about each household beside its PUPRN, ``{name: sqlalchemy type}``.
+    #: ``_get_all_puprn_info`` must then return exactly these keys. To record the toy's floor
+    #: area, import ``Float`` from ``sqlalchemy`` and declare:
+    # household_attributes = {'floor_area_m2': Float}
+
+    def __init__(self, data_dir: Optional[Union[Path, str]] = None, **kwargs):
+        # A fresh Settings: the configuration adds BEA's defaults to the one it is given, and the
+        # module's is shared by every instance.
+        settings = Settings()
+        settings.add_settings(dataset_settings)
+        super().__init__(settings=settings, **kwargs)
+        self._data_dir = Path(data_dir) if isinstance(data_dir, str) else data_dir
+        self._readings = {}
+
+    @property
+    def data_dir(self):
+        """Where the source's files are: the one given, else the machine layer's ``data_dir``."""
+        if self._data_dir is None:
+            self._data_dir = self.dataset_config.input_dirs.data_dir
+        return self._data_dir
+
+    def readings(self, name: str) -> pd.DataFrame:
+        """One of ``FILES``, read once per cohort, indexed by time where it has a time column."""
+        if name not in self._readings:
+            with (self.data_dir / FILES[name]).open('r', encoding='utf-8') as file:
+                frame = pd.read_csv(file)
+            if TIME_COLUMN in frame:
+                frame = frame.set_index(pd.to_datetime(frame.pop(TIME_COLUMN), utc=True))
+            self._readings[name] = frame
+        return self._readings[name]
+
+    def _get_all_puprn_info(self) -> dict:
+        """``{puprn: {attribute: value}}`` for every household in the source."""
+        households = self.readings('households')
+        return {str(puprn): {} for puprn in households[PUPRN_COLUMN]}
+        # With household_attributes declared above:
+        # return {str(row.puprn): {'floor_area_m2': float(row.floor_area_m2)}
+        #         for row in households.itertuples()}
+
+    def get_dataset(self, house_number: int):
+        from {{ import_name }}.household import {{ household_class_name }}
+        return {{ household_class_name }}(house_number=house_number, dataset_cohort=self)
+
+
+# A filter excludes a household's readings an analysis should not see. One is a BaseFilter
+# subclass, registered when this module is imported; for example:
+#
+# from project_configuration.filtering.filtering_criteria.base_filter import BaseFilter
+#
+# class NegativeEnergy(BaseFilter, default_threshold=0, threshold_name='negative_readings', priority=0):
+#     """Exclude the readings where the summed energy is negative."""
+#
+#     def _apply_filter(self, threshold: int = None):
+#         data = self.result.analysis_data
+#         return data[data.power >= 0]

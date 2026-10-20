@@ -1,0 +1,37 @@
+"""{{ household_class_name }}: one household of {{ class_name }}.
+
+In BEA a ``Dataset`` is the data of **one household**, never the whole data source. Each getter
+returns that household's readings of one section of the source schema, indexed by time, with the
+source's own column names: BEA maps and converts them through ``settings.py``.
+"""
+import pandas as pd
+from building_energy_analysis.building_data.datasets.household_dataset import Dataset
+
+from {{ import_name }}.cohort import PUPRN_COLUMN, {{ class_name }}
+
+
+class {{ household_class_name }}(Dataset):
+    """One household of ``{{ class_name }}``; ``cohort.get_dataset(house_number)`` builds it."""
+    dataset_cohort: {{ class_name }}
+
+    def __init__(self, house_number: int, dataset_cohort: {{ class_name }} = None, **kwargs):
+        super().__init__(house_number=house_number, dataset_cohort=dataset_cohort or {{ class_name }}(), **kwargs)
+
+    def _columns(self, name: str, section: str) -> pd.DataFrame:
+        """This household's rows of the cohort's ``name`` readings, in ``section``'s columns."""
+        readings = self.dataset_cohort.readings(name)
+        if PUPRN_COLUMN in readings:
+            readings = readings[readings[PUPRN_COLUMN] == self.puprn]
+        return readings[[parameter.name for _, parameter in self.dataset_config[section]]]
+
+    def _get_energy_data(self) -> pd.DataFrame:
+        return self._columns('energy', 'energy_parameters')
+
+    def _get_climate_data(self) -> pd.DataFrame:
+        # The toy's climate is one weather record for the whole cohort, so it has no PUPRN column.
+        return self._columns('climate', 'climate_parameters')
+
+    def _get_in_home_data(self) -> pd.DataFrame:
+        # Optional: a source with no in-home sensors leaves in_home_parameters empty and drops
+        # this override. MLR, which the toy test fits, needs temp_int.
+        return self._columns('in_home', 'in_home_parameters')

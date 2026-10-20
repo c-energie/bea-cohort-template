@@ -1,0 +1,54 @@
+"""The source schema of {{ class_name }}: which column holds each BEA quantity, and in what unit.
+
+A **source schema** maps each BEA quantity (``elec``, ``temp_ext``, ...) to the column of the data
+source that holds it, in one of three sections, and gives every mapped quantity a ``[units]``
+entry: a unit in a column name does not count, and a quantity mapped without one is refused when
+the cohort is built (``MissingUnits``). The mapping below is the toy's; replace it with the
+source's own column names.
+
+``[sensor_uncertainty]`` is each mapped quantity's measurement (Type B) uncertainty, in the unit
+under ``[units]``: what ``variables.py`` builds the cohort's variables from. Ask whoever installed
+the meters and sensors; an explicit ``0`` is allowed, but it must be a decision, not a default.
+
+``[input_dirs]`` names where this machine's copy of the source is. Its value is never set here: the
+first read writes a machine-layer configuration file with ``data_dir`` blank, and the error a blank
+raises names that file. Fill it in there, with an absolute path.
+"""
+from project_configuration.config.settings import Settings
+
+settings = dict(
+    energy_parameters=dict(
+        elec='elec_kwh',
+        gas='gas_kwh',
+    ),
+    climate_parameters=dict(
+        temp_ext='air_temp_c',
+        solar='solar_w_m2',
+    ),
+    in_home_parameters=dict(
+        temp_int='living_room_temp_c',
+        # More in-home sensors map the same way, each with a unit and an uncertainty below:
+        # rhum_int='living_room_rh_pct',
+    ),
+    units=dict(
+        elec='kWh',
+        gas='kWh',
+        temp_ext='degC',
+        solar='Wm-2',
+        temp_int='degC',
+        # rhum_int='%',
+    ),
+    sensor_uncertainty=dict(
+        elec=dict(relative=0.01),
+        gas=dict(relative=0.01),
+        temp_ext=dict(absolute=0.3),
+        solar=dict(relative=0.05),
+        temp_int=dict(absolute=0.3),
+        # rhum_int=dict(absolute=3),
+    ),
+    input_dirs=dict(
+        data_dir='',
+    ),
+)
+
+dataset_settings = Settings(settings)

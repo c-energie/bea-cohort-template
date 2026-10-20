@@ -1,0 +1,15 @@
+"""{{ class_name }}'s variables: one for every quantity a model reads from it, with its uncertainty.
+
+Each quantity with a column is built from ``[sensor_uncertainty]`` in ``settings.py``, so its
+uncertainty is written once, beside its column and unit. ``power`` is the sum of the energy
+columns, which a model fits against, and so is declared directly.
+"""
+from building_energy_analysis.models.variables.sensor_variables import declare_sensor_variables
+from building_energy_analysis.models.variables.variable_base import Variable
+
+from {{ import_name }}.cohort import {{ class_name }}
+from {{ import_name }}.settings import dataset_settings
+
+sensor_variables = declare_sensor_variables(dataset_settings, {{ class_name }})
+
+power = Variable(name='power', relative_unc=0.01, dataset_cohort={{ class_name }})

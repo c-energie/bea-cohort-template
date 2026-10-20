@@ -1,0 +1,114 @@
+# The template's own CI (c-energie/smeter-test-workspace#16, #18): render, check, install, test.
+#
+# Not the reusable c-energie/.github unittest workflow: that one tests a checkout as it stands,
+# and this repository has to be rendered first.
+#
+# Until BEA 1.0 is on PyPI a render's `building-energy-analysis>=1.0,<2` cannot resolve, so the
+# upstreams are installed from git and the pin is relaxed with `--override`. Once it is released,
+# drop the upstreams step, the token and the override, and install the render as it stands.
+
+name: template
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rendered-files:
+    name: rendered files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v7
+      - name: Check the rendered files
+        run: uv run --no-project --python 3.13 --with copier --with pyyaml python -m unittest discover -s tests -v
+
+  rendered-suite:
+    name: ${{ matrix.answers }} / ${{ matrix.os }} / py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.11", "3.13"]
+        answers: [default, proprietary]
+        include:
+          - { os: windows-latest, python: "3.13", answers: default }
+          - { os: windows-latest, python: "3.13", answers: proprietary }
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: "true"
+      TEST_TIER: fast
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Render
+        env:
+          ANSWERS: ${{ matrix.answers }}
+        run: |
+          set -euo pipefail
+          data=()
+          if [ "$ANSWERS" = proprietary ]; then data=(--data licence=proprietary); fi
+          uvx copier copy --defaults --trust --quiet --vcs-ref HEAD "${data[@]}" . "$RUNNER_TEMP/out"
+          echo "OUT=$RUNNER_TEMP/out" >> "$GITHUB_ENV"
+
+      - name: Create venv
+        env:
+          PYTHON: ${{ matrix.python }}
+        run: |
+          set -euo pipefail
+          uv venv --python "$PYTHON" "$RUNNER_TEMP/venv"
+          venv="$RUNNER_TEMP/venv"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            venv="$(cygpath -w "$venv")"
+            bin="$venv\\Scripts"
+          else
+            bin="$venv/bin"
+          fi
+          echo "VIRTUAL_ENV=$venv" >> "$GITHUB_ENV"
+          echo "$bin" >> "$GITHUB_PATH"
+
+      # The token reaches git through the environment only, never a requirement line or a log.
+      - name: Authenticate git for private upstreams
+        env:
+          TOKEN: ${{ secrets.C_ENERGIE_READ_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
+
+      - name: Install upstreams from git
+        run: |
+          uv pip install \
+            "project-configuration @ git+https://github.com/c-energie/project-configuration@master" \
+            "building-energy-analysis @ git+https://github.com/c-energie/building-energy-analysis@master"
+
+      - name: Install the render
+        run: |
+          set -euo pipefail
+          echo "building-energy-analysis" > "$RUNNER_TEMP/overrides.txt"
+          uv pip install -e "$OUT" --override "$RUNNER_TEMP/overrides.txt"
+
+      - name: Test the render
+        working-directory: ${{ runner.temp }}/out
+        run: python -m unittest discover -v
+
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: test-logs-${{ matrix.answers }}-${{ matrix.os }}-py${{ matrix.python }}-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/out/tests/Logs/
