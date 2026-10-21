@@ -14,8 +14,8 @@ import unittest
 from pathlib import Path
 
 from building_energy_analysis.building_data.testing.contract_tests import CohortContractTests
+from building_energy_analysis.results.db.tracked_engine import EngineTracker
 from project_configuration import testing
-from project_configuration.results.sql.tracked_engine import EngineTracker
 
 from {{ import_name }}.cohort import TOY_DATA, {{ class_name }}
 

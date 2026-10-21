@@ -94,7 +94,7 @@ class {{ class_name }}(DatasetCohort):
 # A filter excludes a household's readings an analysis should not see. One is a BaseFilter
 # subclass, registered when this module is imported; for example:
 #
-# from project_configuration.filtering.filtering_criteria.base_filter import BaseFilter
+# from building_energy_analysis.plugin_api import BaseFilter
 #
 # class NegativeEnergy(BaseFilter, default_threshold=0, threshold_name='negative_readings', priority=0):
 #     """Exclude the readings where the summed energy is negative."""
