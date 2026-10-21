@@ -16,6 +16,12 @@ against BEA's cohort contract and fit MLR on one toy household. Its README then 
 replacing the toy with your own source. The `bea-cohort-adapter` agent skill in BEA drives the
 same steps.
 
+## Contents
+
+- [Questions](#questions)
+- [Versions](#versions)
+- [Working on the template](#working-on-the-template)
+
 ## Questions
 
 | Question | Default | |
