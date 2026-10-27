@@ -30,7 +30,8 @@ Commit after each step, and rerun the tests after each one.
 3. **Read its files** in `src/{{ import_name }}/cohort.py` (`readings`, `_get_all_puprn_info`) and
    `src/{{ import_name }}/household.py`, for the source's own layout.
 4. **Point at the data.** The first time the cohort reads its configuration it writes a machine-layer
-   file, `Datasets/{{ class_name }}_config.toml` under your configuration home, with `data_dir`
+   file, `datasets/{{ class_name }}_config.toml` under your configuration home
+   (`~/.config/project-configuration/` by default), with `data_dir`
    blank under `[input_dirs]`. Set it there to the absolute path of the data. Until then, the
    cohort refuses to read and the error names the file.
 5. **Keep the toy as the tests' fixture**, or replace it with a small synthetic one of the source's

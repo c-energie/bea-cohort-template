@@ -1,5 +1,6 @@
 # Configuration the test framework and BEA generate where they run: environment-local, never committed.
 tests/Configuration_files/
+project-configuration/
 Configuration_files/
 tests/Logs/
 Logs/
