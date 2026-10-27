@@ -123,6 +123,7 @@ class TestsDefaultRender(RendersOnce, unittest.TestCase):
     def test_its_gitignore_keeps_the_generated_configuration_out(self):
         ignored = (self.out / '.gitignore').read_text(encoding='utf-8').splitlines()
         self.assertIn('tests/Configuration_files/', ignored)
+        self.assertIn('project-configuration/', ignored)
         self.assertIn('Configuration_files/', ignored)
 
     def test_it_ships_the_self_contained_tests_workflow(self):
